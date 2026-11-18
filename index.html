@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#91AD70">
+<title>出國記帳</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;background:#f3f4f6;color:#111827;padding-bottom:76px}
+header{background:#91AD70;color:#1f2a12;padding:10px 12px;position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:8px}
+#tripSel{width:auto;flex:1;min-width:0;font-size:18px;font-weight:700;background:rgba(255,255,255,.45);border:0;color:#1f2a12;padding:9px 10px}
+#cs{font-size:12px;opacity:.9;white-space:nowrap}
+main{padding:12px;max-width:640px;margin:0 auto}
+.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+label{display:block;font-size:13px;color:#6b7280;margin:10px 0 4px}
+input,select,textarea{width:100%;font-size:17px;padding:11px;border:1px solid #d1d5db;border-radius:8px;background:#fff}
+.row{display:flex;gap:8px}.row>*{flex:1}
+button{font-size:17px;padding:12px 14px;border:0;border-radius:10px;background:#91AD70;color:#1f2a12;font-weight:600;width:100%}
+button.sec{background:#e5e7eb;color:#111827}
+button.red{background:#dc2626;color:#fff}
+button.small{width:auto;font-size:14px;padding:8px 12px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#fff;border-top:1px solid #e5e7eb;z-index:6}
+nav button{background:none;color:#6b7280;border-radius:0;font-size:14px;padding:12px 4px}
+nav button.on{color:#566c3b;border-top:3px solid #91AD70;font-weight:700}
+.chk{display:flex;flex-wrap:wrap;gap:8px}
+.chk label{display:flex;align-items:center;gap:6px;margin:0;padding:9px 12px;border:1px solid #d1d5db;border-radius:20px;color:#111827;font-size:16px;width:auto}
+.chk input{width:auto;margin:0}
+.chk label.sel{background:#eaf1df;border-color:#91AD70}
+.item{padding:10px 0;border-bottom:1px solid #f0f0f0}
+.item:last-child{border:0}
+.item .t{display:flex;justify-content:space-between;font-weight:600}
+.item .s{font-size:13px;color:#6b7280;margin-top:2px}
+.pos{color:#059669;font-weight:700}.neg{color:#dc2626;font-weight:700}
+.warn{background:#fef3c7;border-radius:8px;padding:10px;font-size:14px;margin-bottom:10px}
+.msg{font-size:14px;margin-top:8px;min-height:18px}
+.hide{display:none}
+h3{margin:0 0 6px;font-size:16px}
+.muted{color:#6b7280;font-size:13px}
+.seg{display:flex;gap:6px;margin-top:6px}.seg button{padding:9px;font-size:15px}
+</style>
+</head>
+<body>
+<header><select id="tripSel"></select><span id="cs"></span></header>
+<main>
+ <!-- 記帳 -->
+ <section id="p-add">
+  <div class="card">
+   <h3 id="formTitle">新增一筆</h3>
+   <div class="row">
+    <div><label>日期</label><input type="date" id="fDate"></div>
+    <div><label>時間</label><input type="time" id="fTime"></div>
+   </div>
+   <div class="row">
+    <div><label>幣別</label><select id="fCur"></select></div>
+    <div><label>金額</label><input id="fAmt" inputmode="decimal" placeholder="0"></div>
+   </div>
+   <label>項目</label><input id="fItem" placeholder="例如：拉麵、車票、住宿">
+   <label>誰先付錢</label><select id="fPayer"></select>
+   <label>誰要分攤（可多選）</label>
+   <div class="chk" id="fWho"></div>
+   <div class="seg">
+    <button class="sec" id="mEq">平均分</button>
+    <button class="sec" id="mCu">自訂各人金額</button>
+   </div>
+   <div id="custom" class="hide"></div>
+   <div class="msg" id="fMsg"></div>
+   <div class="row" style="margin-top:8px">
+    <button id="fSave">儲存</button>
+    <button class="sec hide" id="fCancel">取消編輯</button>
+   </div>
+   <button class="red hide" id="fDel" style="margin-top:8px">刪除這筆</button>
+  </div>
+ </section>
+ <!-- 明細 -->
+ <section id="p-list" class="hide">
+  <div class="card"><div id="listBox"></div></div>
+  <button id="btnXlsx">匯出這趟旅程 Excel</button>
+  <button class="sec" id="btnXlsxAll" style="margin-top:8px">匯出全部旅程 Excel（每趟一個分頁）</button>
+ </section>
+ <!-- 結算 -->
+ <section id="p-settle" class="hide">
+  <div id="settleBox"></div>
+ </section>
+ <!-- 設定 -->
+ <section id="p-set" class="hide">
+  <div class="card">
+   <h3>旅程</h3>
+   <label>目前這趟的名稱（Excel 分頁名稱）</label>
+   <div class="row"><input id="tName" placeholder="例如：2027 東京"><button class="sec" id="tRename" style="flex:0 0 90px">改名</button></div>
+   <label>新增另一趟旅程</label>
+   <div class="row"><input id="tNew" placeholder="例如：202708 四國"><button id="tAdd" style="flex:0 0 90px">新增</button></div>
+   <button class="red" id="tDel" style="margin-top:14px">刪除這趟旅程（含全部帳目）</button>
+  </div>
+  <div class="card">
+   <h3>這趟的旅伴與幣別</h3>
+   <label>旅伴（用逗號分開）</label>
+   <input id="sMembers" placeholder="例如：小明,小華,小美">
+   <p class="muted">已記錄的帳不會因改名而更動，請盡量一開始就設好。</p>
+   <label>結算用的主要幣別（例如 TWD）</label>
+   <input id="sBase" placeholder="TWD">
+   <label>要用的幣別（用逗號分開）</label>
+   <input id="sCurs" placeholder="TWD,JPY,USD">
+   <button id="sSave" style="margin-top:10px">儲存設定</button>
+  </div>
+  <div class="card">
+   <h3>匯率（1 單位外幣 = 幾 <span id="baseName"></span>）</h3>
+   <div id="rateBox"></div>
+   <p class="muted">匯率只用在「結算」和 Excel 的換算金額，請自己填入旅途中的大約匯率。</p>
+  </div>
+  <div class="card">
+   <h3>☁ 雲端備份（Google 試算表）</h3>
+   <p class="muted">每趟旅程會在你的試算表裡各自有一個分頁。沒網路時會先存在手機，有網路再自動補傳。</p>
+   <input id="cUrl" placeholder="https://script.google.com/macros/s/.../exec">
+   <div class="row" style="margin-top:8px"><button id="cConnect">連線</button><button class="sec" id="cSync">立即同步</button></div>
+   <div class="msg" id="cloudMsg"></div>
+   <button class="sec small" id="cOff">中斷連線</button>
+   <label>旅伴專用連結（點一下就自動連上這本帳，只傳給旅伴，不要公開貼）</label>
+   <input id="shareLink" readonly placeholder="連線後，按下面的按鈕產生">
+   <button class="sec" id="cShare" style="margin-top:8px">產生旅伴連結</button>
+  </div>
+  <div class="card">
+   <h3>手動備份</h3>
+   <p class="muted">資料也存在這支手機的瀏覽器裡。備份檔包含全部旅程。</p>
+   <button class="sec" id="bBackup">下載備份檔</button>
+   <label>還原備份</label><input type="file" id="bFile" accept=".json">
+  </div>
+ </section>
+</main>
+<nav id="nav">
+ <button data-p="add" class="on">記帳</button>
+ <button data-p="list">明細</button>
+ <button data-p="settle">結算</button>
+ <button data-p="set">設定</button>
+</nav>
+
+<script>
+"use strict";
+const KEY="travel-ledger-v1";
+const $=id=>document.getElementById(id);
+const r2=x=>Math.round(x*100)/100;
+const fmt=x=>r2(x).toLocaleString("en-US",{maximumFractionDigits:2});
+const pad=n=>String(n).padStart(2,"0");
+const nowD=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+const nowT=()=>{const d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes());};
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+/* ---------- 資料 ---------- */
+function mkTrip(name,id){return {id:id||Date.now(),name,members:["我","朋友"],base:"TWD",curs:["TWD","JPY","USD"],rates:{TWD:1},expenses:[]};}
+function normTrip(t){
+ t.name=t.name||"旅程";if(!t.members||!t.members.length)t.members=["我","朋友"];
+ t.base=t.base||"TWD";if(!t.curs||!t.curs.length)t.curs=[t.base];if(!t.rates)t.rates={};if(!t.expenses)t.expenses=[];
+ return t;
+}
+function loadObj(o){
+ let s={trips:[],cur:null};
+ if(o&&o.trips)s={trips:o.trips.map(normTrip),cur:o.cur};
+ else if(o&&o.expenses){const t=mkTrip("我的旅行",1);Object.assign(t,{members:o.members,base:o.base,curs:o.curs,rates:o.rates,expenses:o.expenses});s={trips:[normTrip(t)],cur:1};}
+ if(!s.trips.length)s.trips=[mkTrip("我的旅行",1)];
+ if(!s.trips.some(t=>t.id===s.cur))s.cur=s.trips[0].id;
+ return s;
+}
+let S;
+try{S=loadObj(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){S=loadObj(null);}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+const T=()=>S.trips.find(t=>t.id===S.cur);
+const tripObj=t=>({id:t.id,name:t.name,members:t.members,base:t.base,curs:t.curs,rates:t.rates});
+let editId=null,mode="eq",lastCur=null,lastPayer=null,curPage="add",dirtyDT=false;
+
+/* ---------- 分頁 ---------- */
+function show(p){
+ ["add","list","settle","set"].forEach(k=>$("p-"+k).classList.toggle("hide",k!==p));
+ document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.p===p));
+ curPage=p;
+ if(p==="add")refreshDT();
+ if(p==="list")renderList(); if(p==="settle")renderSettle(); if(p==="set")renderSet();
+ window.scrollTo(0,0);
+}
+document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>show(b.dataset.p));
+function renderTrips(){
+ $("tripSel").innerHTML=S.trips.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
+ $("tripSel").value=S.cur;
+}
+$("tripSel").onchange=()=>{S.cur=+$("tripSel").value;save();lastCur=lastPayer=null;clearForm();show(curPage);};
+
+/* ---------- 記帳表單 ---------- */
+function refreshDT(){if(editId||dirtyDT)return;$("fDate").value=nowD();$("fTime").value=nowT();}
+["input","change"].forEach(ev=>{$("fDate").addEventListener(ev,()=>dirtyDT=true);$("fTime").addEventListener(ev,()=>dirtyDT=true);});
+function buildForm(){
+ const t=T();
+ $("fCur").innerHTML=t.curs.map(c=>`<option>${esc(c)}</option>`).join("");
+ $("fPayer").innerHTML=t.members.map(m=>`<option>${esc(m)}</option>`).join("");
+ if(lastCur&&t.curs.includes(lastCur))$("fCur").value=lastCur;
+ if(lastPayer&&t.members.includes(lastPayer))$("fPayer").value=lastPayer;
+ $("fWho").innerHTML=t.members.map((m,i)=>`<label class="sel"><input type="checkbox" value="${i}" checked>${esc(m)}</label>`).join("");
+ $("fWho").querySelectorAll("input").forEach(c=>c.onchange=()=>{c.parentNode.classList.toggle("sel",c.checked);renderCustom();});
+ renderCustom();
+}
+function selected(){return [...$("fWho").querySelectorAll("input:checked")].map(c=>T().members[+c.value]);}
+function setMode(m){mode=m;$("mEq").style.background=m==="eq"?"#cddcb4":"";$("mCu").style.background=m==="cu"?"#cddcb4":"";renderCustom();}
+$("mEq").onclick=()=>setMode("eq");$("mCu").onclick=()=>setMode("cu");
+let customVals={};
+function renderCustom(){
+ const box=$("custom");
+ if(mode!=="cu"){box.classList.add("hide");return;}
+ box.classList.remove("hide");
+ box.innerHTML=selected().map(m=>`<label>${esc(m)} 要分攤的金額</label><input inputmode="decimal" data-m="${esc(m)}" value="${customVals[m]??""}">`).join("");
+ box.querySelectorAll("input").forEach(i=>i.oninput=()=>customVals[i.dataset.m]=i.value);
+}
+function clearForm(){
+ editId=null;customVals={};dirtyDT=false;
+ $("fItem").value="";$("fAmt").value="";refreshDT();
+ $("formTitle").textContent="新增一筆";$("fCancel").classList.add("hide");$("fDel").classList.add("hide");
+ $("fMsg").textContent="";buildForm();setMode("eq");
+}
+$("fSave").onclick=()=>{
+ const t=T(),amt=parseFloat($("fAmt").value),item=$("fItem").value.trim(),who=selected(),msg=$("fMsg");
+ msg.style.color="#dc2626";
+ if(!(amt>0)){msg.textContent="請輸入金額";return;}
+ if(!item){msg.textContent="請輸入項目";return;}
+ if(!who.length){msg.textContent="至少要選一位分攤的人";return;}
+ let split={};
+ if(mode==="eq"){
+  const each=r2(amt/who.length);let sum=0;
+  who.forEach((m,i)=>{const v=i===who.length-1?r2(amt-sum):each;split[m]=v;sum+=v;});
+ }else{
+  let sum=0;who.forEach(m=>{const v=parseFloat(customVals[m]||0)||0;split[m]=r2(v);sum+=v;});
+  if(Math.abs(sum-amt)>0.01){msg.textContent=`各人金額加總 ${fmt(sum)}，與總金額 ${fmt(amt)} 不符`;return;}
+ }
+ const e={id:editId||Date.now(),date:$("fDate").value||nowD(),time:$("fTime").value||nowT(),cur:$("fCur").value,item,amount:r2(amt),payer:$("fPayer").value,split};
+ lastCur=e.cur;lastPayer=e.payer;
+ if(editId){const i=t.expenses.findIndex(x=>x.id===editId);t.expenses[i]=e;}else t.expenses.push(e);
+ save();queue({t:"put",trip:t.id,e});const wasEdit=!!editId;clearForm();
+ $("fMsg").style.color="#059669";$("fMsg").textContent=wasEdit?"已更新 ✓":"已儲存 ✓";
+ if(wasEdit)show("list");
+};
+$("fCancel").onclick=()=>{clearForm();show("list");};
+$("fDel").onclick=()=>{
+ if(!editId)return;
+ if($("fDel").dataset.ask!=="1"){$("fDel").dataset.ask="1";$("fDel").textContent="再按一次確認刪除";return;}
+ const t=T(),did=editId;t.expenses=t.expenses.filter(x=>x.id!==did);save();queue({t:"del",trip:t.id,id:did});
+ $("fDel").dataset.ask="0";$("fDel").textContent="刪除這筆";clearForm();show("list");
+};
+function editExp(id){
+ const t=T(),e=t.expenses.find(x=>x.id===id);if(!e)return;
+ clearForm();editId=id;show("add");
+ $("formTitle").textContent="編輯這筆";$("fCancel").classList.remove("hide");$("fDel").classList.remove("hide");
+ $("fDate").value=e.date;$("fTime").value=e.time||"";
+ if(!t.curs.includes(e.cur)){t.curs.push(e.cur);buildForm();}
+ $("fCur").value=e.cur;$("fItem").value=e.item;$("fAmt").value=e.amount;
+ if(![...$("fPayer").options].some(o=>o.value===e.payer)){const o=document.createElement("option");o.textContent=e.payer;$("fPayer").appendChild(o);}
+ $("fPayer").value=e.payer;
+ $("fWho").querySelectorAll("input").forEach(c=>{const on=e.split[t.members[+c.value]]!==undefined;c.checked=on;c.parentNode.classList.toggle("sel",on);});
+ customVals={};Object.keys(e.split).forEach(m=>customVals[m]=e.split[m]);
+ const vals=Object.values(e.split);const eq=vals.every(v=>Math.abs(v-vals[0])<=0.011);
+ setMode(eq?"eq":"cu");
+}
+
+/* ---------- 明細 ---------- */
+const sortKey=e=>e.date+" "+(e.time||"00:00");
+function renderList(){
+ const L=[...T().expenses].sort((a,b)=>sortKey(a)===sortKey(b)?b.id-a.id:(sortKey(a)<sortKey(b)?1:-1));
+ if(!L.length){$("listBox").innerHTML='<p class="muted">這趟旅程還沒有任何記錄</p>';return;}
+ $("listBox").innerHTML=L.map(e=>`<div class="item" data-id="${e.id}"><div class="t"><span>${esc(e.item)}</span><span>${esc(e.cur)} ${fmt(e.amount)}</span></div><div class="s">${e.date} ${e.time||""}｜${esc(e.payer)} 先付｜分攤：${Object.keys(e.split).map(esc).join("、")}</div></div>`).join("");
+ $("listBox").querySelectorAll(".item").forEach(d=>d.onclick=()=>editExp(+d.dataset.id));
+}
+
+/* ---------- 結算 ---------- */
+const rateOf=(t,c)=>c===t.base?1:parseFloat(t.rates[c]);
+function calc(t){
+ const paid={},owe={},missing=new Set();
+ t.members.forEach(m=>{paid[m]=0;owe[m]=0;});
+ t.expenses.forEach(e=>{
+  const r=rateOf(t,e.cur);if(!(r>0)){missing.add(e.cur);return;}
+  paid[e.payer]=(paid[e.payer]||0)+e.amount*r;
+  Object.keys(e.split).forEach(m=>owe[m]=(owe[m]||0)+e.split[m]*r);
+ });
+ const names=Object.keys(Object.assign({},paid,owe));
+ const net={};names.forEach(m=>net[m]=r2((paid[m]||0)-(owe[m]||0)));
+ const cr=names.filter(m=>net[m]>0.005).map(m=>({m,v:net[m]})).sort((a,b)=>b.v-a.v);
+ const db=names.filter(m=>net[m]<-0.005).map(m=>({m,v:-net[m]})).sort((a,b)=>b.v-a.v);
+ const tr=[];let i=0,j=0;
+ while(i<db.length&&j<cr.length){const x=Math.min(db[i].v,cr[j].v);tr.push({from:db[i].m,to:cr[j].m,amt:r2(x)});db[i].v-=x;cr[j].v-=x;if(db[i].v<0.005)i++;if(cr[j].v<0.005)j++;}
+ return {paid,owe,net,names,tr,missing:[...missing]};
+}
+function renderSettle(){
+ const t=T(),c=calc(t),B=t.base;let h="";
+ if(c.missing.length)h+=`<div class="warn">還沒設定匯率：${c.missing.map(esc).join("、")}。這些幣別的帳目暫時沒有算進去，請到「設定」填入匯率。</div>`;
+ h+=`<div class="card"><h3>${esc(t.name)}：每個人（${esc(B)}）</h3>`+c.names.map(m=>`<div class="item"><div class="t"><span>${esc(m)}</span><span class="${c.net[m]>=0?"pos":"neg"}">${c.net[m]>=0?"應收 ":"應付 "}${fmt(Math.abs(c.net[m]))}</span></div><div class="s">先付了 ${fmt(c.paid[m]||0)}｜應分攤 ${fmt(c.owe[m]||0)}</div></div>`).join("")+`</div>`;
+ h+=`<div class="card"><h3>怎麼轉帳最簡單</h3>`+(c.tr.length?c.tr.map(x=>`<div class="item"><div class="t"><span>${esc(x.from)} → ${esc(x.to)}</span><span>${esc(B)} ${fmt(x.amt)}</span></div></div>`).join(""):'<p class="muted">目前沒有需要轉帳的款項</p>')+`</div>`;
+ $("settleBox").innerHTML=h;
+}
+
+/* ---------- 設定 ---------- */
+let rt;
+function renderSet(){
+ const t=T();
+ $("tName").value=t.name;$("tNew").value="";
+ $("cUrl").value=cloudUrl;$("sMembers").value=t.members.join(",");$("sBase").value=t.base;$("sCurs").value=t.curs.join(",");
+ $("baseName").textContent=t.base;
+ $("rateBox").innerHTML=t.curs.filter(c=>c!==t.base).map(c=>`<label>1 ${esc(c)} =</label><input inputmode="decimal" data-c="${esc(c)}" value="${t.rates[c]??""}" placeholder="例如 0.21">`).join("")||'<p class="muted">沒有其他幣別</p>';
+ $("rateBox").querySelectorAll("input").forEach(i=>i.oninput=()=>{const tt=T();tt.rates[i.dataset.c]=i.value;save();clearTimeout(rt);rt=setTimeout(()=>queue({t:"trip",v:tripObj(tt)}),1200);});
+}
+$("tRename").onclick=()=>{
+ const n=$("tName").value.trim();if(!n)return;
+ const t=T();t.name=n;save();queue({t:"trip",v:tripObj(t)});renderTrips();
+ $("tRename").textContent="已改 ✓";setTimeout(()=>$("tRename").textContent="改名",1500);
+};
+$("tAdd").onclick=()=>{
+ const n=$("tNew").value.trim();if(!n)return;
+ const t=mkTrip(n);S.trips.push(t);S.cur=t.id;save();queue({t:"trip",v:tripObj(t)});
+ lastCur=lastPayer=null;renderTrips();clearForm();renderSet();
+ $("tAdd").textContent="已新增 ✓";setTimeout(()=>$("tAdd").textContent="新增",1500);
+};
+$("tDel").onclick=()=>{
+ if($("tDel").dataset.ask!=="1"){$("tDel").dataset.ask="1";$("tDel").textContent="再按一次：確定刪除「"+T().name+"」";setTimeout(()=>{$("tDel").dataset.ask="0";$("tDel").textContent="刪除這趟旅程（含全部帳目）";},5000);return;}
+ const id=S.cur;S.trips=S.trips.filter(t=>t.id!==id);
+ if(!S.trips.length)S.trips=[mkTrip("我的旅行")];
+ S.cur=S.trips[0].id;save();queue({t:"deltrip",id});
+ $("tDel").dataset.ask="0";$("tDel").textContent="刪除這趟旅程（含全部帳目）";
+ lastCur=lastPayer=null;renderTrips();clearForm();renderSet();
+};
+$("sSave").onclick=()=>{
+ const sp=s=>s.split(/[,，、\s]+/).map(x=>x.trim()).filter(Boolean);
+ const t=T(),m=sp($("sMembers").value),b=($("sBase").value.trim()||"TWD").toUpperCase();
+ let c=sp($("sCurs").value).map(x=>x.toUpperCase());
+ if(m.length<1)return;if(!c.includes(b))c.unshift(b);
+ t.members=[...new Set(m)];t.base=b;t.curs=[...new Set(c)];save();queue({t:"trip",v:tripObj(t)});buildForm();renderSet();
+ $("sSave").textContent="已儲存 ✓";setTimeout(()=>$("sSave").textContent="儲存設定",1500);
+};
+$("bBackup").onclick=()=>download(new Blob([JSON.stringify(S)],{type:"application/json"}),"出國記帳備份_"+nowD()+".json");
+$("bFile").onchange=ev=>{
+ const f=ev.target.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{try{
+  const d=JSON.parse(r.result);if(!d.expenses&&!d.trips)throw 0;
+  const ns=loadObj(d);
+  ns.trips.forEach(nt=>{const i=S.trips.findIndex(t=>t.id===nt.id);if(i>=0)S.trips[i]=nt;else S.trips.push(nt);});
+  S.cur=ns.cur;save();
+  ns.trips.forEach(nt=>{queue({t:"trip",v:tripObj(nt)});nt.expenses.forEach(e=>queue({t:"put",trip:nt.id,e}));});
+  renderTrips();clearForm();renderSet();alert("還原完成");
+ }catch(e){alert("備份檔格式不正確");}};
+ r.readAsText(f);
+};
+
+/* ---------- 下載 / xlsx ---------- */
+function download(blob,name){
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+ setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
+}
+const CT=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CT[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
+function zip(files){
+ const enc=new TextEncoder(),parts=[],cen=[];let off=0;
+ const u16=v=>[v&255,(v>>8)&255],u32=v=>[v&255,(v>>8)&255,(v>>16)&255,(v>>>24)&255];
+ files.forEach(f=>{
+  const nm=enc.encode(f.name),d=enc.encode(f.data),crc=crc32(d);
+  const lh=new Uint8Array([...u32(0x04034b50),...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(d.length),...u32(d.length),...u16(nm.length),...u16(0)]);
+  parts.push(lh,nm,d);
+  cen.push(new Uint8Array([...u32(0x02014b50),...u16(20),...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(d.length),...u32(d.length),...u16(nm.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(off)]),nm);
+  off+=lh.length+nm.length+d.length;
+ });
+ let cs=0;cen.forEach(c=>cs+=c.length);
+ const end=new Uint8Array([...u32(0x06054b50),...u16(0),...u16(0),...u16(files.length),...u16(files.length),...u32(cs),...u32(off),...u16(0)]);
+ return new Blob([...parts,...cen,end],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+const colL=n=>{let s="";n++;while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26);}return s;};
+const xe=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,"");
+function sheetXml(rows,widths){
+ let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'+widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")+'</cols><sheetData>';
+ rows.forEach((r,ri)=>{x+=`<row r="${ri+1}">`;r.forEach((v,ci)=>{
+  if(v===null||v===undefined||v==="")return;const ref=colL(ci)+(ri+1);
+  if(typeof v==="number")x+=`<c r="${ref}"><v>${v}</v></c>`;else x+=`<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xe(v)}</t></is></c>`;
+ });x+="</row>";});
+ return x+"</sheetData></worksheet>";
+}
+function tripSheet(t){
+ const c=calc(t),B=t.base;
+ const mc=[...new Set([...t.members,...t.expenses.flatMap(e=>Object.keys(e.split))])];
+ const head=["日期","時間","幣別","項目","金額","付款人","匯率","換算("+B+")",...mc.map(m=>m+" 分攤(原幣)")];
+ const list=[...t.expenses].sort((a,b)=>sortKey(a)===sortKey(b)?a.id-b.id:(sortKey(a)<sortKey(b)?-1:1));
+ const rows=[head,...list.map(e=>{const r=rateOf(t,e.cur);return [e.date,e.time||"",e.cur,e.item,e.amount,e.payer,r>0?r:"",r>0?r2(e.amount*r):"",...mc.map(m=>e.split[m]!==undefined?e.split[m]:"")];})];
+ rows.push([],["【結算】","已先付("+B+")","應分攤("+B+")","差額("+B+")","說明"]);
+ c.names.forEach(m=>rows.push([m,r2(c.paid[m]||0),r2(c.owe[m]||0),c.net[m],c.net[m]>=0?"應收":"應付"]));
+ rows.push([],["【轉帳建議】"]);
+ c.tr.forEach(x=>rows.push([x.from+" → "+x.to,x.amt,B]));
+ if(c.missing.length)rows.push([],["未設定匯率，未計入結算："+c.missing.join("、")]);
+ return {rows,widths:[12,8,8,22,12,10,8,14,...mc.map(()=>16)]};
+}
+function exportTrips(trips,fname){
+ const used=new Set(),sheets=trips.map(t=>{
+  let base=(t.name||"旅程").replace(/[\[\]:*?\/\\]/g,"-").slice(0,28)||"旅程",n=base,k=2;
+  while(used.has(n.toLowerCase()))n=base+" ("+(k++)+")";used.add(n.toLowerCase());
+  return Object.assign({name:n},tripSheet(t));
+ });
+ const ns='xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+ const files=[
+  {name:"[Content_Types].xml",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+sheets.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")+'</Types>'},
+  {name:"_rels/.rels",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+  {name:"xl/workbook.xml",data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook ${ns} xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>`+sheets.map((s,i)=>`<sheet name="${xe(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")+`</sheets></workbook>`},
+  {name:"xl/_rels/workbook.xml.rels",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")+'</Relationships>'}
+ ].concat(sheets.map((s,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,data:sheetXml(s.rows,s.widths)})));
+ download(zip(files),fname);
+}
+$("btnXlsx").onclick=()=>exportTrips([T()],"出國記帳_"+T().name.replace(/[\\\/:*?"<>|]/g,"-")+"_"+nowD()+".xlsx");
+$("btnXlsxAll").onclick=()=>exportTrips(S.trips,"出國記帳_全部旅程_"+nowD()+".xlsx");
+
+/* ---------- 雲端同步（Google 試算表） ---------- */
+const CK="travel-ledger-cloud",PK="travel-ledger-pending2";
+let cloudUrl="",pending=[],busy=false;
+try{cloudUrl=localStorage.getItem(CK)||"";pending=JSON.parse(localStorage.getItem(PK)||"[]");}catch(e){}
+function savePending(){try{localStorage.setItem(PK,JSON.stringify(pending));}catch(e){}}
+function setStatus(t){$("cs").textContent=t;$("cloudMsg").textContent=t;}
+function status(){
+ if(!cloudUrl)return setStatus("未連線雲端");
+ if(busy)return setStatus("☁ 同步中…");
+ setStatus(pending.length?"☁ 待同步 "+pending.length+" 筆":"☁ 已同步");
+}
+const okey=o=>o.t==="trip"?"T"+o.v.id:o.t==="deltrip"?"X"+o.id:"E"+o.trip+":"+(o.t==="put"?o.e.id:o.id);
+function addPending(op){
+ if(op.t==="deltrip"){pending=pending.filter(o=>o.trip!==op.id&&!(o.t==="trip"&&o.v.id===op.id));pending.push(op);}
+ else{const k=okey(op),i=pending.findIndex(o=>okey(o)===k);if(i>=0)pending[i]=op;else pending.push(op);}
+ savePending();
+}
+function queue(op){addPending(op);if(cloudUrl)sync();}
+async function req(opts){
+ const ac=new AbortController(),t=setTimeout(()=>ac.abort(),25000);
+ try{
+  const r=await fetch(cloudUrl,Object.assign({signal:ac.signal},opts||{}));
+  const j=await r.json();if(!j.ok)throw new Error(j.err||"error");
+  if(!j.trips)throw new Error("old script");return j;
+ }finally{clearTimeout(t);}
+}
+function adopt(res){
+ const before=JSON.stringify(T()?[T().members,T().curs]:0);
+ let trips=JSON.parse(JSON.stringify(res.trips||[]));
+ pending.forEach(o=>{
+  if(o.t==="trip"){const t=trips.find(x=>x.id===o.v.id);if(t)Object.assign(t,o.v);else trips.push(Object.assign({expenses:[]},o.v));}
+  else if(o.t==="deltrip")trips=trips.filter(x=>x.id!==o.id);
+  else{const t=trips.find(x=>x.id===o.trip);if(!t)return;t.expenses=(t.expenses||[]).filter(x=>x.id!==(o.t==="put"?o.e.id:o.id));if(o.t==="put")t.expenses.push(o.e);}
+ });
+ trips=trips.map(normTrip);
+ if(!trips.length)trips=[mkTrip("我的旅行",1)];
+ S.trips=trips;if(!trips.some(t=>t.id===S.cur))S.cur=trips[0].id;
+ save();renderTrips();
+ if(!editId&&before!==JSON.stringify([T().members,T().curs]))buildForm();
+ if(curPage==="list")renderList();if(curPage==="settle")renderSettle();
+}
+async function sync(){
+ if(!cloudUrl||busy)return;
+ busy=true;status();
+ try{
+  const sent=pending.slice();let res;
+  if(sent.length){res=await req({method:"POST",body:JSON.stringify({ops:sent})});pending=pending.filter(o=>!sent.includes(o));savePending();}
+  else res=await req();
+  adopt(res);busy=false;status();
+  if(pending.length)sync();
+ }catch(e){busy=false;setStatus(String(e.message)==="old script"?"☁ 雲端程式需要更新":(pending.length?"☁ 離線，待同步 "+pending.length+" 筆":"☁ 暫時連不上"));}
+}
+$("cConnect").onclick=async()=>{
+ const u=$("cUrl").value.trim(),m=$("cloudMsg");
+ if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){m.textContent="網址格式不對，應該是 https://script.google.com/…/exec 結尾";return;}
+ cloudUrl=u;m.textContent="連線中…";
+ try{
+  const j=await req();
+  const ct=new Map((j.trips||[]).map(t=>[t.id,t]));
+  S.trips.forEach(t=>{
+   const c=ct.get(t.id);
+   if(!c){if(t.expenses.length||!(t.id===1&&t.name==="我的旅行")){addPending({t:"trip",v:tripObj(t)});t.expenses.forEach(e=>addPending({t:"put",trip:t.id,e}));}}
+   else{const ids=new Set((c.expenses||[]).map(e=>e.id));t.expenses.filter(e=>!ids.has(e.id)).forEach(e=>addPending({t:"put",trip:t.id,e}));}
+  });
+  try{localStorage.setItem(CK,u);}catch(e){}
+  adopt(j);renderSet();sync();
+ }catch(e){cloudUrl="";m.textContent="連線失敗：請確認網址正確、部署時「誰可以存取」選「所有人」，且雲端程式已更新到最新版";}
+};
+$("cShare").onclick=()=>{
+ if(!cloudUrl){$("cloudMsg").textContent="請先連線雲端";return;}
+ const l=location.href.split("#")[0]+"#u="+encodeURIComponent(cloudUrl);
+ $("shareLink").value=l;$("shareLink").focus();$("shareLink").select();
+ try{navigator.clipboard.writeText(l).then(()=>$("cloudMsg").textContent="已複製連結 ✓").catch(()=>$("cloudMsg").textContent="請長按上方連結框，選「拷貝」");}catch(e){$("cloudMsg").textContent="請長按上方連結框，選「拷貝」";}
+};
+$("cSync").onclick=()=>{if(!cloudUrl){$("cloudMsg").textContent="請先貼上網址並按「連線」";return;}sync();};
+$("cOff").onclick=()=>{cloudUrl="";pending=[];try{localStorage.removeItem(CK);localStorage.removeItem(PK);}catch(e){}status();};
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){refreshDT();sync();}});
+window.addEventListener("online",sync);
+setInterval(()=>{if(!document.hidden){refreshDT();sync();}},60000);
+
+/* ---------- 啟動 ---------- */
+renderTrips();clearForm();status();
+let hashUrl="";
+try{const m=location.hash.match(/^#u=(.+)$/);if(m){hashUrl=decodeURIComponent(m[1]);history.replaceState(null,"",location.pathname+location.search);}}catch(e){}
+if(hashUrl&&hashUrl!==cloudUrl){$("cUrl").value=hashUrl;$("cConnect").onclick();}
+else if(cloudUrl){$("cUrl").value=cloudUrl;sync();}
+</script>
+</body>
+</html>
